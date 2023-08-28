@@ -1,0 +1,75 @@
+
+```{r}
+#| label: barplotfunc
+#| cache: true
+#| cache.comments: false
+
+rsdata <- rsdata %>%
+  mutate(shf_loopdiureticdose_cat = factor(
+    case_when(
+      shf_loopdiureticdose <= 10 ~ 1,
+      shf_loopdiureticdose <= 20 ~ 2,
+      shf_loopdiureticdose <= 30 ~ 3,
+      shf_loopdiureticdose <= 40 ~ 4,
+      shf_loopdiureticdose <= 50 ~ 5,
+      shf_loopdiureticdose <= 60 ~ 6,
+      shf_loopdiureticdose <= 70 ~ 7,
+      shf_loopdiureticdose <= 80 ~ 8,
+      shf_loopdiureticdose <= 90 ~ 9,
+      shf_loopdiureticdose > 90 ~ 10,
+    ),
+    levels = 1:10,
+    labels = c(
+      "<=10",
+      "11-20",
+      "21-30",
+      "31-40",
+      "41-50",
+      "51-60",
+      "61-70",
+      "71-80",
+      "81-90",
+      ">90"
+    )
+  ))
+
+barplotfunc <- function(data) {
+  data %>%
+    filter(!is.na(shf_loopdiureticdose_cat)) %>%
+    count(shf_loopdiureticdose_cat, .drop = F) %>%
+    mutate(np = paste0(n, "\n(", fn(n / sum(n) * 100, 1), "%)")) %>%
+    ggplot(aes(x = shf_loopdiureticdose_cat, y = n)) +
+    geom_bar(stat = "identity", fill = cols[2]) +
+    scale_y_continuous(limits = c(0, 7000)) +
+    theme_classic() +
+    theme(
+      text = element_text(size = 20)
+    ) +
+    labs(x = "Loop diuretic dose (mg/24h)", y = "Count") +
+    geom_text(aes(label = np), nudge_y = 500, size = 5)
+}
+```
+
+```{r}
+#| label: fig-barplot-dose-pop-1
+#| cache: true
+#| cache.comments: false
+#| dependson: barplotfunc
+#| fig-cap: "Loop diuretic dose - Population 1"
+
+barplotfunc(
+  data = rsdata %>% filter(pop1)
+)
+```
+
+```{r}
+#| label: fig-barplot-dose-pop-2
+#| cache: true
+#| cache.comments: false
+#| dependson: barplotfunc
+#| fig-cap: "Loop diuretic dose - Population 2"
+
+barplotfunc(
+  data = rsdata
+)
+```
