@@ -1,20 +1,27 @@
-# Cut outcomes at 3 years
+# Cut outcomes at 4 years
 
-rsdata <- cut_surv(rsdata, sos_out_deathcvhosphf, sos_outtime_hosphf, 365 * 3, cuttime = FALSE, censval = "No")
-rsdata <- cut_surv(rsdata, sos_out_hosphf, sos_outtime_hosphf, 365 * 3, cuttime = TRUE, censval = "No")
-rsdata <- cut_surv(rsdata, sos_out_hospany, sos_outtime_hospany, 365 * 3, cuttime = TRUE, censval = "No")
-rsdata <- cut_surv(rsdata, sos_out_deathcv, sos_outtime_death, 365 * 3, cuttime = FALSE, censval = "No")
-rsdata <- cut_surv(rsdata, sos_out_death, sos_outtime_death, 365 * 3, cuttime = TRUE, censval = "No")
+rsdata <- cut_surv(rsdata, sos_out_deathcvhosphf, sos_outtime_hosphf, global_followup, cuttime = FALSE, censval = "No")
+rsdata <- cut_surv(rsdata, sos_out_hosphf, sos_outtime_hosphf, global_followup, cuttime = TRUE, censval = "No")
+rsdata <- cut_surv(rsdata, sos_out_deathcv, sos_outtime_death, global_followup, cuttime = FALSE, censval = "No")
+rsdata <- cut_surv(rsdata, sos_out_death, sos_outtime_death, global_followup, cuttime = TRUE, censval = "No")
 
 rsdata <- rsdata %>%
-  rename(shf_loopdiuretic_old = shf_loopdiuretic) %>%
+  rename(
+    shf_loopdiuretic_old = shf_loopdiuretic,
+    shf_loopdiureticdose_old = shf_loopdiureticdose
+  ) %>%
   mutate(
-    censdtm = pmin(censdtm, shf_indexdtm + 365 * 3, na.rm = T),
+    censdtm = pmin(censdtm, shf_indexdtm + global_followup, na.rm = T),
     shf_loopdiuretic = factor(case_when(
       shf_loopdiuretic_old == "No" |
         shf_loopdiureticusage == "When necessary" ~ 0,
       shf_loopdiuretic_old == "Yes" ~ 1
     ), level = 0:1, labels = c("No", "Yes")),
+    shf_loopdiureticdose = case_when(
+      shf_loopdiureticsub == "Furosemid" | is.na(shf_loopdiureticsub) ~ shf_loopdiureticdose_old,
+      shf_loopdiureticsub == "Bumetanid" ~ shf_loopdiureticdose_old * 40,
+      shf_loopdiureticsub == "Toresamid" ~ shf_loopdiureticdose_old * 2
+    ),
     shf_loopdiuretic_cat = factor(case_when(
       shf_loopdiuretic == "No" ~ 0,
       shf_loopdiureticdose <= 40 ~ 1,
@@ -28,7 +35,6 @@ rsdata <- rsdata %>%
     shf_ef_cat = droplevels(shf_ef_cat),
 
     # fix outcomes
-
     sos_out_deathcvnohosphf = ifelse(sos_out_deathcv == "Yes", sos_out_nohosphf + 1, sos_out_nohosphf),
 
     # comp risk outcomes
@@ -41,15 +47,14 @@ rsdata <- rsdata %>%
 ## Create numeric variables needed for comp risk model
 rsdata <- create_crvar(rsdata, "shf_loopdiuretic_cat")
 
-
 # income
-
 inc <- rsdata %>%
-  group_by(shf_indexyear) %>%
-  summarise(incmed = quantile(scb_dispincome,
-    probs = 0.5,
+  reframe(incsum = list(enframe(quantile(scb_dispincome,
+    probs = c(0.33, 0.66),
     na.rm = TRUE
-  ), .groups = "drop_last")
+  ))), .by = shf_indexyear) %>%
+  unnest(cols = c(incsum)) %>%
+  pivot_wider(names_from = name, values_from = value)
 
 rsdata <- left_join(
   rsdata,
@@ -59,40 +64,40 @@ rsdata <- left_join(
   mutate(
     scb_dispincome_cat = factor(
       case_when(
-        scb_dispincome < incmed ~ 1,
-        scb_dispincome >= incmed ~ 2
+        scb_dispincome < `33%` ~ 1,
+        scb_dispincome < `66%` ~ 2,
+        scb_dispincome >= `66%` ~ 3
       ),
-      levels = 1:2,
-      labels = c("Below median within indexyear", "Above median within indexyear")
+      levels = 1:3,
+      labels = c("1st tertile within year", "2nd tertile within year", "3rd tertile within year")
     )
   ) %>%
-  select(-incmed)
+  select(-`33%`, -`66%`)
 
 # ntprobnp
 
-ntprobnp <- rsdata %>%
-  group_by(shf_ef_cat) %>%
-  summarise(
-    ntmed = quantile(shf_ntprobnp,
-      probs = 0.5,
-      na.rm = TRUE
-    ),
-    .groups = "drop_last"
-  )
+nt <- rsdata %>%
+  reframe(ntmed = list(enframe(quantile(shf_ntprobnp,
+    probs = c(0.33, 0.66),
+    na.rm = TRUE
+  ))), .by = shf_ef_cat) %>%
+  unnest(cols = c(ntmed)) %>%
+  pivot_wider(names_from = name, values_from = value)
 
 rsdata <- left_join(
   rsdata,
-  ntprobnp,
+  nt,
   by = c("shf_ef_cat")
 ) %>%
   mutate(
     shf_ntprobnp_cat = factor(
       case_when(
-        shf_ntprobnp < ntmed ~ 1,
-        shf_ntprobnp >= ntmed ~ 2
+        shf_ntprobnp < `33%` ~ 1,
+        shf_ntprobnp < `66%` ~ 2,
+        shf_ntprobnp >= `66%` ~ 3
       ),
-      levels = 1:2,
-      labels = c("Below median within EF", "Above median within EF")
+      levels = 1:3,
+      labels = c("1st tertile within EF", "2nd tertile within EF", "3rd tertile within EF")
     )
   ) %>%
-  select(-ntmed)
+  select(-`33%`, -`66%`)

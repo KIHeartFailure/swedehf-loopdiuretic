@@ -193,22 +193,18 @@ tmp_data <- inner_join(
   patregrsdata,
   by = "lopnr"
 ) %>%
-  mutate(difft = difftime(INDATUM, shf_indexdtm,
-    units = "days"
-  )) %>%
-  filter(difft <= 0)
-
-tmp_data <- tmp_data %>%
+  mutate(difft = as.numeric(INDATUM - shf_indexdtm)) %>%
+  filter(difft <= 0 & difft >= -5 * 365.25) %>%
   mutate(cancer = stringr::str_detect(HDIA, " C(?!44)")) %>%
   filter(cancer)
 
 tmp_data <- tmp_data %>%
-  filter(difft >= -5 * 365.25) %>%
   group_by(lopnr, shf_indexdtm) %>%
   arrange(INDATUM) %>%
-  mutate(difftcancer = INDATUM - lag(INDATUM)) %>%
+  mutate(difftcancer = as.numeric(INDATUM - lag(INDATUM))) %>%
   ungroup() %>%
-  # arrange(LopNr, shf_indexdtm) %>%
+  # arrange(lopnr, shf_indexdtm) %>%
+  # select(lopnr, shf_indexdtm, INDATUM, difftcancer) %>%
   filter(difftcancer <= 7 * 30.5) %>%
   group_by(lopnr, shf_indexdtm) %>%
   slice(1) %>%
@@ -245,7 +241,7 @@ rsdata <- create_sosvar(
   type = "out",
   noof = TRUE,
   name = "nohosphf",
-  stoptime = 3 * 365,
+  stoptime = global_followup,
   diakod = " I110| I130| I132| I255| I420| I423| I425| I426| I427| I428| I429| I43| I50| J81| K761| R57",
   censdate = censdtm,
   warnings = TRUE,

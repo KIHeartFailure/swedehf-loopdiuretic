@@ -2,7 +2,7 @@
 #| label: kmfunc
 #| cache: true
 #| cache.comments: false
-kmfunc <- function(time, event, eventname, xvar = "shf_loopdiuretic_cat", data, endfollow = 3, labposadj = c(-0.06, -0.06, 0.12)) {
+kmfunc <- function(time, event, eventname, xvar = "shf_loopdiuretic_cat", data, endfollow = global_followup / 365.25, labposadj = c(-0.06, -0.06, 0.12)) {
   levs <- levels(data %>% pull(!!sym(xvar)))
   nlevs <- length(levs)
 
@@ -34,10 +34,8 @@ kmfunc <- function(time, event, eventname, xvar = "shf_loopdiuretic_cat", data, 
     "estimate" = s$surv,
     "std.error" = s$std.err,
     "strata" = s$strata
-  )
-
-  plot_data <- plot_data %>%
-    mutate(strata = str_remove_all(strata, paste0(xvar, "=")))
+  ) %>%
+    mutate(strata = fct_rev(fct_inorder(str_remove_all(strata, paste0(xvar, "=")))))
 
   annotate_data <- plot_data %>%
     filter(time == 2 * 365)
@@ -61,14 +59,13 @@ kmfunc <- function(time, event, eventname, xvar = "shf_loopdiuretic_cat", data, 
       nudge_x = 0, nudge_y = labposadj, size = 6, hjust = 0
     ) +
     annotate("text", x = 0, y = .85, label = paste0(c("", levs), collapse = "\n"), hjust = 0, size = 6) +
-    annotate("text", x = 1.4, y = .85, label = cox, hjust = 0.5, size = 6)
+    annotate("text", x = 1.65, y = .85, label = cox, hjust = 0.5, size = 6)
 
   # n at risk
   table_data <- plot_data %>%
     filter(
       time %in% c(seq(0, endfollow, 1) * 365)
     )
-
 
   t <- ggplot(table_data, aes(y = strata, x = time / 365)) +
     geom_text(aes(label = n.risk), size = 6) +
@@ -89,17 +86,13 @@ kmfunc <- function(time, event, eventname, xvar = "shf_loopdiuretic_cat", data, 
       # axis.text.y = element_text(margin = margin(0, 0, 0, 100))
       axis.text.y = element_text(hjust = 0, colour = "black")
     )
-  #  annotation_custom(grid::textGrob("No COPD", rot = 0),
-  #               xmin = -0.5, xmax = -2.5, ymin = 1)
-  # annotation_custom(grid::textGrob("COPD", rot = 0),
-  #                 xmin = 1, xmax = -0.6, ymin = 5)
 
   km <- (p / t) + plot_layout(height = c(1, .25))
   km
 }
 
 mcffunc <- function(event, eventno, eventname, xvar = "shf_loopdiuretic_cat", data, datarec,
-                    endfollow = 3, labposadj = c(-0.1, -0.1, -0.1)) {
+                    endfollow = global_followup / 365.25, labposadj = c(-0.1, -0.1, -0.1)) {
   levs <- levels(data %>% pull(!!sym(xvar)))
   nlevs <- length(levs)
 
@@ -114,8 +107,7 @@ mcffunc <- function(event, eventno, eventname, xvar = "shf_loopdiuretic_cat", da
     paste0(
       fn(exp(mod$coefficients[2:nlevs, 1]), dig = 2),
       " (", fn(exp(mod$coefficients[2:nlevs, 1] - global_z05 * mod$coefficients[2:nlevs, 2]), dig = 2),
-      "-", fn(exp(mod$coefficients[2:nlevs, 1] + global_z05 * mod$coefficients[2:nlevs, 2]), dig = 2), "), ",
-      fn(mod$coefficients[2:nlevs, 4], dig = 3, p = TRUE)
+      "-", fn(exp(mod$coefficients[2:nlevs, 1] + global_z05 * mod$coefficients[2:nlevs, 2]), dig = 2), ")"
     )
   ), collapse = "\n")
 
@@ -127,7 +119,8 @@ mcffunc <- function(event, eventno, eventname, xvar = "shf_loopdiuretic_cat", da
     "estimate" = fit@MCF$MCF,
     "std.error" = fit@MCF$se,
     "strata" = fit@MCF[[xvar]]
-  )
+  ) %>%
+    mutate(strata = fct_rev(strata))
 
   annotate_data <- plot_data %>%
     filter(time <= 2 * 365) %>%
@@ -152,7 +145,7 @@ mcffunc <- function(event, eventno, eventname, xvar = "shf_loopdiuretic_cat", da
       nudge_x = 0, nudge_y = labposadj, size = 6, hjust = 0
     ) +
     annotate("text", x = 0, y = 2.1, label = paste0(c("", levs), collapse = "\n"), hjust = 0, size = 6) +
-    annotate("text", x = 1.4, y = 2.1, label = cox, hjust = 0.5, size = 6)
+    annotate("text", x = 1.65, y = 2.1, label = cox, hjust = 0.5, size = 6)
 
   # n at risk
   # needed for n at risk
@@ -192,58 +185,42 @@ mcffunc <- function(event, eventno, eventname, xvar = "shf_loopdiuretic_cat", da
 ```
 
 ```{r}
-#| label: fig-cvd-1hfh-pop-1
+#| label: fig-cicmcf-pop-1
 #| cache: true
 #| cache.comments: false
 #| dependson: kmfunc
-#| fig-cap: "Cumulative incidence curve CVD/HFH - Population 1"
+#| fig-cap: "Cumulative incidence curve/Mean cumulative function - Population 1"
+#| fig-subcap:
+#|   - "CVD/HFH"
+#|   - "CVD"
+#|   - "HFH"
+#|   - "Total HFH"
+#|   - "CVD/total HFH"
+#|   - "All-cause mortality"
+#| layout-ncol: 2
+#| layout-nrow: 3
 
 kmfunc(
   time = "sos_outtime_hosphf",
   event = "sos_out_deathcvhosphf",
   eventname = "CVD/HFH",
-  data = rsdata %>% filter(pop1)
+  data = rsdata %>% filter(pop1),
+  labposadj = c(-0.06, -0.06, -0.06)
 )
-```
-
-```{r}
-#| label: fig-cvd-pop-1
-#| cache: true
-#| cache.comments: false
-#| dependson: kmfunc
-#| fig-cap: "Cumulative incidence curve CVD - Population 1"
-
 kmfunc(
   time = "sos_outtime_death",
   event = "sos_out_deathcv",
   eventname = "CVD",
   data = rsdata %>% filter(pop1),
-  labposadj = c(-0.05, 0.08, 0.1)
+  labposadj = c(-0.05, 0.09, 0.13)
 )
-```
-
-```{r}
-#| label: fig-1hfh-pop-1
-#| cache: true
-#| cache.comments: false
-#| dependson: kmfunc
-#| fig-cap: "Cumulative incidence curve HFH - Population 1"
-
 kmfunc(
   time = "sos_outtime_hosphf",
   event = "sos_out_hosphf",
   eventname = "HFH",
-  data = rsdata %>% filter(pop1)
+  data = rsdata %>% filter(pop1),
+  labposadj = c(-0.06, -0.06, -0.06)
 )
-```
-
-```{r}
-#| label: fig-tothfh-pop-1
-#| cache: true
-#| cache.comments: false
-#| dependson: kmfunc
-#| fig-cap: "Mean cumulative function total HFH - Population 1"
-
 mcffunc(
   event = "sos_out_hosphf",
   eventno = "sos_out_nohosphf",
@@ -251,15 +228,6 @@ mcffunc(
   data = rsdata %>% filter(pop1),
   datarec = rsdatarep %>% filter(pop1)
 )
-```
-
-```{r}
-#| label: fig-cvd-tothfh-pop-1
-#| cache: true
-#| cache.comments: false
-#| dependson: kmfunc
-#| fig-cap: "Mean cumulative function CVD/total HFH - Population 1"
-
 mcffunc(
   event = "sos_out_deathcvhosphf",
   eventno = "sos_out_deathcvnohosphf",
@@ -267,77 +235,52 @@ mcffunc(
   data = rsdata %>% filter(pop1),
   datarec = rsdatarep %>% filter(pop1)
 )
-```
-
-```{r}
-#| label: fig-acd-pop-1
-#| cache: true
-#| cache.comments: false
-#| dependson: kmfunc
-#| fig-cap: "Cumulative incidence curve All-cause mortality - Population 1"
-
 kmfunc(
   time = "sos_outtime_death",
   event = "sos_out_death",
   eventname = "All-cause mortality",
   data = rsdata %>% filter(pop1),
-  labposadj = c(-0.06, 0.11, 0.12)
+  labposadj = c(-0.06, 0.12, 0.15)
 )
 ```
 
 ```{r}
-#| label: fig-cvd-1hfh-pop-2
+#| label: fig-cicmcf-pop-2
 #| cache: true
 #| cache.comments: false
 #| dependson: kmfunc
-#| fig-cap: "Cumulative incidence curve CVD/HFH - Population 2"
+#| fig-cap: "Cumulative incidence curve/Mean cumulative function - Population 2"
+#| fig-subcap:
+#|   - "CVD/HFH"
+#|   - "CVD"
+#|   - "HFH"
+#|   - "Total HFH"
+#|   - "CVD/total HFH"
+#|   - "All-cause mortality"
+#| layout-ncol: 2
+#| layout-nrow: 3
 
 kmfunc(
   time = "sos_outtime_hosphf",
   event = "sos_out_deathcvhosphf",
   eventname = "CVD/HFH",
-  data = rsdata
+  data = rsdata,
+  labposadj = c(-0.06, -0.06, -0.06)
 )
-```
-
-```{r}
-#| label: fig-cvd-pop-2
-#| cache: true
-#| cache.comments: false
-#| dependson: kmfunc
-#| fig-cap: "Cumulative incidence curve CVD - Population 2"
-
 kmfunc(
   time = "sos_outtime_death",
   event = "sos_out_deathcv",
   eventname = "CVD",
   data = rsdata,
-  labposadj = c(-0.05, 0.08, 0.1)
+  labposadj = c(-0.05, 0.08, 0.12)
 )
-```
-
-```{r}
-#| label: fig-1hfh-pop-2
-#| cache: true
-#| cache.comments: false
-#| dependson: kmfunc
-#| fig-cap: "Cumulative incidence curve HFH - Population 2"
-
 kmfunc(
   time = "sos_outtime_hosphf",
   event = "sos_out_hosphf",
   eventname = "HFH",
-  data = rsdata
+  data = rsdata,
+  labposadj = c(-0.06, -0.06, -0.06)
 )
-```
-
-```{r}
-#| label: fig-tothfh-pop-2
-#| cache: true
-#| cache.comments: false
-#| dependson: kmfunc
-#| fig-cap: "Mean cumulative function total HFH - Population 2"
-
 mcffunc(
   event = "sos_out_hosphf",
   eventno = "sos_out_nohosphf",
@@ -345,15 +288,6 @@ mcffunc(
   data = rsdata,
   datarec = rsdatarep
 )
-```
-
-```{r}
-#| label: fig-cvd-tothfh-pop-2
-#| cache: true
-#| cache.comments: false
-#| dependson: kmfunc
-#| fig-cap: "Mean cumulative function CVD/total HFH - Population 2"
-
 mcffunc(
   event = "sos_out_deathcvhosphf",
   eventno = "sos_out_deathcvnohosphf",
@@ -361,20 +295,11 @@ mcffunc(
   data = rsdata,
   datarec = rsdatarep
 )
-```
-
-```{r}
-#| label: fig-acd-pop-2
-#| cache: true
-#| cache.comments: false
-#| dependson: kmfunc
-#| fig-cap: "Cumulative incidence curve All-cause mortality - Population 2"
-
 kmfunc(
   time = "sos_outtime_death",
   event = "sos_out_death",
   eventname = "All-cause mortality",
   data = rsdata,
-  labposadj = c(-0.06, 0.11, 0.12)
+  labposadj = c(-0.06, 0.12, 0.15)
 )
 ```

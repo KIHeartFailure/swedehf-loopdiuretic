@@ -1,6 +1,5 @@
 ---
 title: "Statistical report: Loop Diuretic Therapy as a Prognostic Enrichment Factor for Clinical Trials in Patients with Heart Failure with mrEF and pEF"
-subtitle: DRAFT
 date: "`r Sys.Date()`"
 cover: static/ki_logo_vert_rgb.png
 editor: source
@@ -54,17 +53,18 @@ source(here::here("setup/setup.R"))
 # load data
 load(here("data/clean-data/data.RData"))
 
-# create workbook to write tables to Excel
-wb <- createWorkbook()
+# load workbook to write tables to Excel
+wb <- loadWorkbook(here("output/tabs/tables.xlsx"))
+sheets <- names(wb)
 ```           
 
 \newpage
 
-# Data sources
+# Data
 
-The Swedish Heart Failure Registry (SwedeHF) linked with national Swedish registries (SHFDB v 4.1.0) through the Swedish PIN number[@pin]. 
+## Data sources
 
-SwedeHF is a nationwide health quality and research registry started in 2000, 
+The Swedish Heart Failure Registry (SwedeHF) is a nationwide quality registry started in 2000, 
 that includes in- and out-hospital patients with HF, regardless of EF and previous history of HF[@swedehf]. 
 Around 80 variables are recorded at 
 discharge from hospital or at the outpatient visit, i.e. index date, and 
@@ -73,62 +73,53 @@ Center (Uppsala, Sweden). Up to April 2017 the only inclusion criterion was a
 clinical diagnosis of HF, which was thereafter defined according to the ICD-10 
 codes I50.0, I50.1, I50.9, I42.0, I42.6, I42.7, I25.5, I11.0, I13.0, I13.2. 
 Informed consent is not required, although patients are informed of entry and can opt out. 
-In 2021, 69 of 76 Swedish hospitals enrolled patients in SwedeHF, which had a 32% coverage of the prevalent HF in Sweden[@annualreport].  
+In 2021, 69 of 76 Swedish hospitals enrolled patients in SwedeHF, which had a 32% coverage of the prevalent HF population in Sweden[@annualreport]. 
 
-- National Patient Register (The National Board of Health and Welfare) for additional comorbidities and the hospitalization outcomes
-- Cause of Death Register (The National Board of Health and Welfare) for outcomes death
-- National Dispensed Drug Register (The National Board of Health and Welfare) for XXX
-- LISA [@lisa] and Register of the Total Population (Statistics Sweden) for socio-economic factors
+SwedeHF was linked with national Swedish registries (SHFDB v 4.1.0) through the 
+Swedish personal identity number (PIN)[@pin]: 
+
+- The National Patient Register (The National Board of Health and Welfare) for 
+additional comorbidities and the hospitalization outcomes
+- The Cause of Death Register (The National Board of Health and Welfare) for outcomes 
+death
+- LISA[@lisa] and the Register of the Total Population (Statistics Sweden) for 
+socio-economic factors
+
+## Acknowledgments
+
+Please include "We thank all staff members at all care units in Sweden for their contribution to the SwedeHF register." 
+in the Acknowledgements of any resulting articles. 
 
 ## Ethics
 
 The study was approved by the Swedish Ethical Review Authority, dnr 2021-04326. 
 
-## Acknowledgments
-
-Please include "We thank all staff members at all care units in Sweden for their contribution to the SwedeHF register." 
-in the Acknowledgments of any resulting articles. 
-
 \newpage
 
-# Inclusion/exclusion criteria
+## Inclusion/exclusion criteria
 
 ```{r}
 #| label: tbl-flow
 #| tbl-cap: Information for flowchart
 default_kable(flow) %>%
-  row_spec(c(1, 10, 18, 34, 37), bold = T)
+  row_spec(c(1, 10, 19, 36, 37), bold = T)
 ```
 
-# Definitions
+## Definitions
 
-The definitions for the general dataset, including ICD-10 codes used for outcomes and co-morbidities, are found https://kiheartfailure.github.io/shfdb4/definitions/.
+Information on data sources, definitions etc. are found https://kiheartfailure.github.io/shfdb4/.
 
-Additional variables created for this project: 
+{{< include src/vars.qmd >}}
 
-```{r}
-#| label: tbl-npr
-#| tbl-cap: Additional comorbidites from the National Patient Register
+### Loop diuretic
 
-metaout <- metaout %>%
-  mutate(Code = str_replace_all(Code, "\\,", "\\, "))
-default_kable(metaout) %>%
-  column_spec(2, width = "20cm") %>%
-  column_spec(5, width = "5cm")
-```
-
-## Loop diuretic
-
-All analyses are performed for the loop diuretic exposure No loop diuretic, Dose 1-40mg/24h, Dose >40mg/24h.
+All analyses are performed for No loop diuretic, Dose 1-40mg/24h, Dose >40mg/24h. Doses were converted to Furosemid equivalents were Furosemide 40 mg = Toresamid 20 mg = Bumetanid 1 mg. 
+When there was no information on substance it was assumed to be Furosemide. 
 
 Prescribed daily usage of loop diuretics was considered as taking 
 loop diuretics and when necessary as not taking loop diuretic. 
 
 Note that loop diuretic usage can be either prevalent use or newly initiated use. 
-
-## Populations
-
-All analyses will be performed for both population 1 and population 2 (see @tbl-flow for definitions). 
 
 # Statistical analysis 
 
@@ -136,58 +127,70 @@ All analyses will be performed for both population 1 and population 2 (see @tbl-
 
 All analyses were performed using `r sessionInfo()$R.version$version.string` [@r]. 
 The level of significance is set to 5%, two-sided. No adjustment for multiple 
-comparisons were made and therefore the results should be viewed with some care.
+comparisons were made and therefore the results should be viewed with care.
 
 ## Missing data
 
 Missing data was imputed with multiple imputation (n = 10) using mice [@mice]. 
 Variables included in the model are indicated in @tbl-base. 
-The primary outcome CV mortality/first HF hospitalization was included as the Nelson-Aalen estimator.
+All-cause mortality was included as the Nelson-Aalen estimator.
+
+## Populations
+
+All analyses will be performed for both population 1 and population 2 (see @tbl-flow for definitions). 
 
 ## Baseline characteristics
 
-Baseline characteristics were presented by loop diuretic
-where categorical variables were presented with n and percentage and tested between groups with the chi-square test. 
-Continuous variables were presented with median (q1-q3) and tested for differences between groups with the Kruskal-Wallis test. 
+Baseline characteristics are presented by loop diuretic
+were categorical variables are presented with n and percentage and tested for 
+differences between groups with the chi-square test. 
+Continuous variables are presented with median [first quartile-third quartile] and tested for 
+differences between groups with the Kruskal-Wallis test. 
 
 ## Association between loop diuretic and outcomes
 
 The following outcomes are considered: 
 
-- CV mortality + first HF hospitalization (primary endpoint?????)
-- CV mortality
-- First HF hospitalization
-- Total HF hospitalization
-- CV mortality + total HF hospitalization
-- All-cause mortality 
+- CV death (CVD) + first HF hospitalization (HFH)
+- CVD + total HFH
+- CVD
+- First HFH
+- Total HFH
+- All-cause death
 
 Time to first events were presented with cumulative incidence curves (CIC) and 
 the mean cumulative function (MCF) was used to depict the recurrent events by loop diuretic. 
 
-Crude and adjusted analyses were performed where adjustment was performed for variables indicated in @tbl-base. 
+Crude and adjusted analyses were performed where adjustment was performed for 
+variables indicated in @tbl-base. 
 The variables were selected based on clinical relevance.
 
 Cox proportional hazards regressions were used to model the time to first event. 
-As a consistency analysis the time to first events were modelled using a sub-distributional hazards model[@fg] 
+As a consistency analysis the time to first events were modelled using a 
+sub-distributional hazards model[@fg] 
 where death was treated as a competing event (only crude models). 
 
-Recurrent events were model using a negative binomial regression including the log of time as an offset in the model. 
+Recurrent events were model using a negative binomial regression including the 
+log of time as an offset in the model. 
 
-Data were censored at 3 years (OK??? Or should be longer/shorter follow-up????) follow-up, 2021-12-31, emigration from Sweden or, when it was itself not an event, death. 
+Data were censored at `r global_followup/365.25` years follow-up, 2021-12-31, 
+emigration from Sweden or, when it was itself not an event, death. 
 
 ### Assumptions
 
 The proportional hazards assumption was investigated using the scaled Schoenfeld 
-residuals (cox.zph in[@survival-package]) for the primary outcome leading to that location was stratified for in the models. 
+residuals for the primary outcome leading to that location was stratified for in the models. 
 Possible outliers were visually inspected by plotting the dfbetas. 
 
 ### Residual confounding
 
-In order to assess how robust the association between loop diuretic and the primary outcome is 
+In order to assess how robust the association between loop diuretic and the outcomes are 
 to residual confounding the E-value 
-was calculated[@evalue] [@evalue2]. The E-value is interpreted as the minimum Risk Ratio 
+was calculated[@evalue] [@evalue2]. The HR/RR used are from the adjusted models. 
+Approximate conversions of the HR to RR are applied, assuming a non-rare outcome. 
+The E-value is interpreted as the minimum Risk Ratio 
 that an unmeasured confounder would need to have with both loop diuretic and 
-the primary outcome, conditional on the variables currently adjusted 
+the outcome, conditional on the variables currently adjusted 
 for in the model, to fully eliminate the association between loop diuretic and the outcome. 
 
 # Results
@@ -226,7 +229,7 @@ percfem_pop2 <- rsdata %>%
   pull(perc)
 ```
 
-The median age (IQR) is `r med_pop1` and `r percfem_pop1`% females in Population 1 and 
+The median (q1-q3) age is `r med_pop1` and `r percfem_pop1`% females in Population 1 and 
 `r med_pop2` and `r percfem_pop2`% females in Population 2.    
 
 {{< include src/dose_barplot.qmd >}}
@@ -235,7 +238,7 @@ The median age (IQR) is `r med_pop1` and `r percfem_pop1`% females in Population
 
 ## Baseline characteristics
 
-{{< include src/base_table.qmd >}}
+{{< include src/base_tab.qmd >}}
 
 \elandscape
 

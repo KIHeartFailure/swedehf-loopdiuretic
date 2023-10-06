@@ -2,48 +2,109 @@
 #| label: evaluefunc
 #| cache: true
 #| cache.comments: false
+#| dependson: tbl-outcomes
 
-coxvars <- modvars
-coxvars[modvars %in% stratavars] <- paste0("strata(", coxvars[modvars %in% stratavars], ")")
+evalfunc <- function(eventname, rep = FALSE) {
+  oute <- data.frame(matrix(NA, ncol = 5, nrow = 1))
+  colnames(oute) <- c("Outcome", rep(c("E-value (Lower CI-)"), 4))
 
-evalfunc <- function(impdata, time, event, eventname, xvar = "shf_loopdiuretic_cat") {
-  levs <- levels(rsdata %>% pull(!!sym(xvar)))
-  nlevs <- length(levs)
+  oute[, 1] <- eventname
 
-  ## adjusted
-  mod <- summary(pool(with(impdata, coxph(formula(paste0(
-    "Surv(", time, ",", event, " == 'Yes') ~ ", xvar, "+", paste(coxvars, collapse = " + ")
-  ))))))
+  ests <- outall %>%
+    filter(Outcome == eventname & str_detect(Model, "Adjusted"))
 
-  out <- data.frame(matrix(NA, ncol = 5, nrow = (nlevs - 1) * 2))
-  out[, 2] <- c("Model estimates", "E-values")
-
-  colnames(out) <- c("Loop diuretic", "Variable", "RR*", "Lower CI", "Upper CI")
-  for (i in seq_along(levs[2:nlevs])) {
-    out[i + (i - 1), 1] <- levs[i + 1]
-    out[(i + (i - 1)):(i + (i - 1) + 1), 3:5] <-
-      fn(
-        evalue(HR(exp(mod$estimate[i]), rare = FALSE),
-          lo = exp(mod$estimate[i] - global_z05 * mod$std.error[i]),
-          hi = exp(mod$estimate[i] + global_z05 * mod$std.error[i])
-        ),
-        dig = 2
-      )
+  if (!rep) {
+    oute[2] <- paste0(paste0(fn(
+      evalue(HR(ests$hr1.x, rare = FALSE),
+        lo = ests$lci1.x,
+        hi = ests$uci1.x,
+      )["E-values", 1:2],
+      dig = 2
+    ), collapse = " ("), "-)")
+    oute[3] <- paste0(paste0(fn(
+      evalue(HR(ests$hr2.x, rare = FALSE),
+        lo = ests$lci2.x,
+        hi = ests$uci2.x,
+      )["E-values", 1:2],
+      dig = 2
+    ), collapse = " ("), "-)")
+    oute[4] <- paste0(paste0(fn(
+      evalue(HR(ests$hr1.y, rare = FALSE),
+        lo = ests$lci1.y,
+        hi = ests$uci1.y,
+      )["E-values", 1:2],
+      dig = 2
+    ), collapse = " ("), "-)")
+    oute[5] <- paste0(paste0(fn(
+      evalue(HR(ests$hr2.y, rare = FALSE),
+        lo = ests$lci2.y,
+        hi = ests$uci2.y,
+      )["E-values", 1:2],
+      dig = 2
+    ), collapse = " ("), "-)")
   }
-  return(out)
+
+  if (rep) {
+    oute[2] <- paste0(paste0(fn(
+      evalue(RR(ests$hr1.x),
+        lo = ests$lci1.x,
+        hi = ests$uci1.x,
+      )["E-values", 1:2],
+      dig = 2
+    ), collapse = " ("), "-)")
+    oute[3] <- paste0(paste0(fn(
+      evalue(RR(ests$hr2.x),
+        lo = ests$lci2.x,
+        hi = ests$uci2.x,
+      )["E-values", 1:2],
+      dig = 2
+    ), collapse = " ("), "-)")
+    oute[4] <- paste0(paste0(fn(
+      evalue(RR(ests$hr1.y),
+        lo = ests$lci1.y,
+        hi = ests$uci1.y,
+      )["E-values", 1:2],
+      dig = 2
+    ), collapse = " ("), "-)")
+    oute[5] <- paste0(paste0(fn(
+      evalue(RR(ests$hr2.y),
+        lo = ests$lci2.y,
+        hi = ests$uci2.y,
+      )["E-values", 1:2],
+      dig = 2
+    ), collapse = " ("), "-)")
+  }
+  return(oute)
 }
 
-eval_pop1 <- evalfunc(
-  impdata = imprsdata_pop1,
-  time = "sos_outtime_hosphf",
-  event = "sos_out_deathcvhosphf",
+death <- evalfunc(
+  eventname = "All-cause mortality"
+)
+cvdeath <- evalfunc(
+  eventname = "CVD"
+)
+hfhosp <- evalfunc(
+  eventname = "First HFH"
+)
+rephfhosp <- evalfunc(
+  eventname = "Total HFH",
+  rep = TRUE
+)
+cvdeathhfhosp <- evalfunc(
   eventname = "CVD/First HFH"
 )
-eval_pop2 <- evalfunc(
-  impdata = imprsdata,
-  time = "sos_outtime_hosphf",
-  event = "sos_out_deathcvhosphf",
-  eventname = "CVD/First HFH"
+cvdeathrephfhosp <- evalfunc(
+  eventname = "CVD/Total HFH",
+  rep = TRUE
+)
+
+evalout <- rbind(
+  cvdeathhfhosp,
+  cvdeath,
+  hfhosp,
+  rephfhosp,
+  cvdeathrephfhosp,
+  death
 )
 ```
 
@@ -54,15 +115,11 @@ eval_pop2 <- evalfunc(
 #| dependson: evaluefunc
 #| tbl-cap: "Residual confounding - E-value"
 
-out <- bind_cols(eval_pop1, eval_pop2 %>% select(-"Loop diuretic", -Variable)) %>%
-  mutate(across(everything(), ~ str_replace_all(.x, "NA", "")))
+make_one_xlsxsheet(evalout)
 
-colnames(out) <- c("", "", rep(c("RR*", "Lower CI", "Upper CI"), 2))
-
-default_kable(out) %>%
-  add_header_above(c(" ", " ", "Population 1" = 3, "Population 2" = 3)) %>%
-  footnote(
-    general_title = "",
-    symbol = "Approximate conversions of the HR to RR are applied, assuming a non-rare outcome."
-  )
+default_kable(evalout,
+  escape = FALSE
+) %>%
+  add_header_above(c(" ", "Dose 1-40mg" = 1, "Dose >40mg" = 1, "Dose 1-40mg" = 1, "Dose >40mg" = 1)) %>%
+  add_header_above(c(" ", "Population 1" = 2, "Population 2" = 2))
 ```

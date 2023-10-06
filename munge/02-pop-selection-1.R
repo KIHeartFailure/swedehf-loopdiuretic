@@ -1,6 +1,5 @@
 # Inclusion/exclusion criteria --------------------------------------------------------
 
-load(here(paste0(shfdbpath, "data/rsdata_flow.RData")))
 flow <- flow[1:8, ]
 
 flow <- rbind(c("General inclusion/exclusion criteria", ""), flow)
@@ -30,6 +29,10 @@ flow <- rbind(flow, c("Exclude posts with missing information on loop diuretic u
 rsdata <- rsdata %>%
   filter(shf_loopdiuretic == "No" | shf_loopdiureticusage == "When necessary" | !is.na(shf_loopdiureticdose))
 flow <- rbind(flow, c("Exclude posts with missing information on loop diuretic dose", nrow(rsdata)))
+
+rsdata <- rsdata %>%
+  filter(shf_indexdtm <= ymd("2021-06-30"))
+flow <- rbind(flow, c("Exclude posts included >= 2021-07-01 (< 6 months follow-up)", nrow(rsdata)))
 
 rsdata <- rsdata %>%
   group_by(lopnr) %>%

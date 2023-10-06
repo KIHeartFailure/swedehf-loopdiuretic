@@ -10,8 +10,9 @@ outcomesfunc <- function(data, impdata, time, event, eventname, xvar = "shf_loop
   levs <- levels(data %>% pull(!!sym(xvar)))
   nlevs <- length(levs)
 
-  out <- data.frame(matrix(NA, ncol = 2 + nlevs, nrow = if_else(fg, 4, 3)))
-  colnames(out) <- c("Outcome", "Model", levs)
+  nrows <- if_else(fg, 4, 3)
+  out <- data.frame(matrix(NA, ncol = 2 + nlevs + (nlevs - 1) * 3, nrow = nrows))
+  colnames(out) <- c("Outcome", "Model", levs, paste0(c("hr", "lci", "uci"), rep(1:(nlevs - 1), each = 3)))
 
   out[, 1] <- eventname
 
@@ -66,12 +67,12 @@ outcomesfunc <- function(data, impdata, time, event, eventname, xvar = "shf_loop
     )
 
     ## 3 row - adjusted regression
-    out[3, 2] <- "Adjusted HR (95% CI), p-value"
+    out[nrows, 2] <- "Adjusted HR (95% CI), p-value"
     mod <- summary(pool(with(impdata, coxph(formula(paste0(
       "Surv(", time, ",", event, " == 'Yes') ~ ", xvar, "+", paste(coxvars, collapse = " + ")
     ))))))
 
-    out[3, 3:(nlevs + 2)] <- c(
+    out[nrows, 3:(nlevs + 2)] <- c(
       "ref",
       paste0(
         fn(exp(mod$estimate[1:(nlevs - 1)]), dig = 2),
@@ -81,8 +82,12 @@ outcomesfunc <- function(data, impdata, time, event, eventname, xvar = "shf_loop
       )
     )
 
+    out[nrows, paste0("hr", 1:(nlevs - 1))] <- exp(mod$estimate[1:(nlevs - 1)])
+    out[nrows, paste0("lci", 1:(nlevs - 1))] <- exp(mod$estimate[1:(nlevs - 1)] - global_z05 * mod$std.error[1:(nlevs - 1)])
+    out[nrows, paste0("uci", 1:(nlevs - 1))] <- exp(mod$estimate[1:(nlevs - 1)] + global_z05 * mod$std.error[1:(nlevs - 1)])
+
     if (fg) {
-      out[4, 2] <- "Crude SHR (95% CI), p-value"
+      out[3, 2] <- "Crude SHR (95% CI), p-value"
       mod <- summary(crr(
         ftime = data %>% pull(!!sym(time)),
         fstatus = data %>% pull(!!sym(paste0(event, "_cr"))),
@@ -91,7 +96,7 @@ outcomesfunc <- function(data, impdata, time, event, eventname, xvar = "shf_loop
         cencode = 0
       ))
 
-      out[4, 3:(nlevs + 2)] <- c(
+      out[3, 3:(nlevs + 2)] <- c(
         "ref",
         paste0(
           fn(mod$coef[, "exp(coef)"], dig = 2),
@@ -148,6 +153,10 @@ outcomesfunc <- function(data, impdata, time, event, eventname, xvar = "shf_loop
       "-", fn(exp(mod$estimate[2:nlevs] + global_z05 * mod$std.error[2:nlevs]), dig = 2), "), ",
       fn(mod$p.value[2:nlevs], dig = 3, p = TRUE)
     ))
+
+    out[nrows, paste0("hr", 1:(nlevs - 1))] <- exp(mod$estimate[2:nlevs])
+    out[nrows, paste0("lci", 1:(nlevs - 1))] <- exp(mod$estimate[2:nlevs] - global_z05 * mod$std.error[2:nlevs])
+    out[nrows, paste0("uci", 1:(nlevs - 1))] <- exp(mod$estimate[2:nlevs] + global_z05 * mod$std.error[2:nlevs])
   }
   return(out)
 }
@@ -280,14 +289,16 @@ outall_pop2 <- rbind(
 
 outall <- full_join(outall_pop1, outall_pop2, by = c("Outcome", "Model"))
 
-cn <- colnames(outall)
+outallprint <- outall %>%
+  mutate(Outcome = if_else(Model == "No events, sum py, events/100py (95% CI)", Outcome, "")) %>%
+  select(-starts_with("hr"), -starts_with("lci"), -starts_with("uci"))
+
+cn <- colnames(outallprint)
 cn <- str_remove_all(cn, "\\.x|\\.y")
 
-outall <- outall %>%
-  mutate(Outcome = if_else(Model == "No events, sum py, events/100py (95% CI)", Outcome, ""))
-make_one_xlsxsheet(outall, colnames = cn)
+make_one_xlsxsheet(outallprint, colnames = cn)
 
-default_kable(outall,
+default_kable(outallprint,
   col.names = cn
 ) %>%
   add_header_above(c(" ", " ", "Population 1" = 3, "Population 2" = 3))

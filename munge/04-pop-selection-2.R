@@ -15,6 +15,10 @@ rsdata <- rsdata %>%
 flow <- rbind(flow, c("Exlude patients with age < 40 at index", nrow(rsdata)))
 
 rsdata <- rsdata %>%
+  filter(sos_com_acutecoronary_excl == "No")
+flow <- rbind(flow, c("Exlude patients with acute coronary syndromes within 3 months", nrow(rsdata)))
+
+rsdata <- rsdata %>%
   filter(sos_com_endstagehf_excl == "No")
 flow <- rbind(flow, c("Exlude patients with end-stage HF", nrow(rsdata)))
 
@@ -32,7 +36,7 @@ flow <- rbind(flow, c("Exlude patients with postpartum cardiomyopathy within 6 m
 
 rsdata <- rsdata %>%
   filter(sos_com_thyroid_excl == "No")
-flow <- rbind(flow, c("Exlude patients with myocarditis, amyloidosis, cardiomyopathy in metabolic diseases", nrow(rsdata)))
+flow <- rbind(flow, c("Exlude patients with myocarditis, amyloidosis, cardiomyopathy in metabolic diseases within 30 days", nrow(rsdata)))
 
 rsdata <- rsdata %>%
   filter(sos_com_obstructivehc_excl == "No")
@@ -55,26 +59,20 @@ rsdata <- rsdata %>%
 flow <- rbind(flow, c("Exlude patients with active malignancies", nrow(rsdata)))
 
 rsdata <- rsdata %>%
-  filter(!is.na(shf_gfrckdepi) | shf_gfrckdepi >= 15)
-flow <- rbind(flow, c("Exlude patients with active malignancies", nrow(rsdata)))
+  filter(is.na(shf_gfrckdepi) | shf_gfrckdepi >= 15)
+flow <- rbind(flow, c("Exlude patients with eGFR < 15 (missing eGFR considered >= 15)", nrow(rsdata)))
 
 rsdata <- rsdata %>%
-  filter(sos_com_liver_excl == "No" & (!is.na(shf_potassium) | shf_potassium >= 15))
-flow <- rbind(flow, c("Exlude patients with liver disease or potassium >5.5", nrow(rsdata)))
+  filter(sos_com_liver_excl == "No" & (!is.na(shf_potassium) | shf_potassium <= 5.5))
+flow <- rbind(flow, c("Exlude patients with liver disease within 7 days or potassium >5.5", nrow(rsdata)))
 
 flow <- rbind(flow, c("Population 2", nrow(rsdata)))
 
 rsdata <- rsdata %>%
-  filter(!is.na(shf_ntprobnp))
-flow <- rbind(flow, c("Exlude patients with missing NT-proBNP", nrow(rsdata)))
-
-rsdata <- rsdata %>%
   mutate(
-    pop1 = shf_sos_prevhfh1yr == "Yes" | shf_ntprobnp >= 300,
+    pop1 = shf_sos_prevhfh1yr == "Yes" | (shf_ntprobnp >= 300 & !is.na(shf_ntprobnp)),
     pop2 = TRUE
   )
-flow <- rbind(flow, c("Include patients with prior HFH < 1 year or NT-proBNP >= 300", nrow(rsdata %>% filter(pop1))))
-
-flow <- rbind(flow, c("Population 1", nrow(rsdata %>% filter(pop1))))
+flow <- rbind(flow, c("Population 1 - Include patients with prior HFH < 1 year or NT-proBNP >= 300 (missing NT-proBNP considered < 300)", nrow(rsdata %>% filter(pop1))))
 
 colnames(flow) <- c("Criteria", "N")

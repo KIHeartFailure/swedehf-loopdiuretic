@@ -20,7 +20,7 @@ rsdata <- rsdata %>%
     ),
     levels = 1:10,
     labels = c(
-      "<=10",
+      "\u226410",
       "11-20",
       "21-30",
       "31-40",
@@ -40,7 +40,7 @@ barplotfunc <- function(data) {
     mutate(np = paste0(n, "\n(", fn(n / sum(n) * 100, 1), "%)")) %>%
     ggplot(aes(x = shf_loopdiureticdose_cat, y = n)) +
     geom_bar(stat = "identity", fill = cols[2]) +
-    scale_y_continuous(limits = c(0, 7000)) +
+    scale_y_continuous(limits = c(0, 8000)) +
     theme_classic() +
     theme(
       text = element_text(size = 20)

@@ -1,7 +1,3 @@
-# Read metadata for variables ---------------------------------------------
-
-metavars <- read.xlsx(here(shfdbpath, "metadata/meta_variables.xlsx"))
-
 # Variables for baseline tables -----------------------------------------------
 
 tabvars <- c(
@@ -39,7 +35,7 @@ tabvars <- c(
   "shf_ntprobnp_cat",
 
   # treatments
-  "shf_diuretic",
+  # "shf_diuretic",
   # "shf_loopdiureticusage",
   # "shf_loopdiuretic_cat",
   "shf_loopdiureticsub",
@@ -113,3 +109,14 @@ tabvars_not_in_mod <- c(
 modvars <- tabvars[!(tabvars %in% tabvars_not_in_mod)]
 
 stratavars <- "shf_location"
+
+outvars <- tibble(
+  var = c("sos_out_death", "sos_out_deathcv", "sos_out_hosphf", "sos_out_nohosphf", "sos_out_deathcvhosphf", "sos_out_deathcvnohosphf"),
+  time = c("sos_outtime_death", "sos_outtime_death", "sos_outtime_hosphf", "sos_outtime_death", "sos_outtime_hosphf", "sos_outtime_death"),
+  name = c("All-cause mortality", "CVD", "First HFH", "Total HFH", "CVD/First HFH", "CVD/Total HFH"),
+  composite = c(0, 0, 0, 0, 1, 1),
+  rep = c(0, 0, 0, 1, 0, 1),
+  primary = c(0, 0, 0, 0, 0, 0),
+  order = c(6, 3, 4, 5, 1, 2)
+) %>%
+  arrange(order)
