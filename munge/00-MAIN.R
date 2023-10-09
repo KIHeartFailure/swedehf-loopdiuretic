@@ -39,8 +39,6 @@ save(
     "stratavars",
     "tabvars",
     "outvars",
-    "metavars",
-    "flow",
     "ccimeta",
     "deathmeta",
     "outcommeta"
