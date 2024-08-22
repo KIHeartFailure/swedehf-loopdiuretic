@@ -1,0 +1,120 @@
+```{r}
+#| label: tbl-base-af
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Baseline characteristics by AF"
+
+basetabaffunc <- function(x, data, stratavar, contdig) {
+  tmp <- data %>%
+    filter(!is.na(!!sym(x)) & !is.na(!!sym(stratavar)) & !is.na(shf_ekg))
+    if (length(contdig) > 1) {
+      if (any(contdig$vars %in% x)) {
+        contdig <- contdig %>%
+          filter(vars == x) %>%
+          pull(contdig)
+      } else {
+        contdig <- 0
+      }
+    }
+    out <- tmp %>%
+      group_by(!!sym(stratavar), shf_ekg, .drop = F) %>%
+      reframe(
+        med = quantile(!!sym(x), na.rm = T, probs = c(0.5)),
+        q1 = quantile(!!sym(x), na.rm = T, probs = c(0.25)),
+        q3 = quantile(!!sym(x), na.rm = T, probs = c(0.75)),
+        n = n()
+      ) %>%
+      mutate(
+        out = paste0(fn(med, contdig), " [", fn(q1, contdig), "-", fn(q3, contdig), "]"),
+        out = if_else(n < 10, "<10", out)
+      ) %>%
+      ungroup() %>%
+      select(!!sym(stratavar), shf_ekg, out) %>%
+      pivot_wider(names_from = !!sym(stratavar), values_from = out)
+
+    out <- out %>%
+      mutate(
+        var = NA
+      ) %>% add_row(
+        var = x,
+        .before = 1
+      ) %>%
+      select(var, everything())
+}
+
+# numvarscheck <- rsdata %>%
+#  head(100) %>%
+#  select(!!!syms(tabvars)) %>%
+#  select(where(is.numeric))
+
+contdig <- 0
+
+tabvarsaf <- c("shf_ntprobnp", "shf_heartrate")
+# pop 1
+tab1 <- lapply(tabvarsaf,
+    FUN = basetabaffunc, data = rsdata %>% filter(pop1),
+    stratavar = "shf_loopdiuretic_cat", contdig = contdig
+  )
+
+  tab1 <- bind_rows(tab1)
+
+
+# pop 2
+  
+tab2 <- lapply(tabvarsaf,
+    FUN = basetabaffunc, data = rsdata,
+    stratavar = "shf_loopdiuretic_cat", contdig = contdig
+  )
+tab2 <- bind_rows(tab2)
+  
+tab <- bind_cols(tab1, tab2 %>% select(-var, -shf_ekg))
+
+tab <- left_join(tab,
+  metavars %>%
+    select(variable, label, unit),
+  by = c("var" = "variable")
+) %>%
+  mutate(
+    Variable = coalesce(label, var),
+    Variable = if_else(!is.na(unit),
+      paste0(Variable, " (", unit, ")"),
+      Variable
+    ),
+    Variable = if_else(!is.na(shf_ekg) & !is.na(Variable),
+      paste0(Variable, " ", shf_ekg),
+      coalesce(Variable, paste0("  ", shf_ekg))
+    )
+  ) %>%
+  select(-var, -shf_ekg, -label, -unit) %>%
+  select(Variable, everything())
+
+levs <- levels(rsdata %>% pull(shf_loopdiuretic_cat))
+cn <- c("Variable", rep(levs, 2))
+# excel
+make_one_xlsxsheet(tab, colnames = cn)
+
+# footnotes
+tab <- tab %>%
+  mutate(
+    # so no probs
+    Variable = sanitize_text(Variable))
+    
+indent_rows <- tab %>%
+  mutate(
+    indent_rows = str_detect(Variable, "  "),
+    rows = row_number()
+  ) %>%
+  filter(indent_rows) %>%
+  pull(rows)
+
+cn <- sanitize_text(cn)
+
+default_kable(tab,
+  font_size = 4,
+  longtable = TRUE,
+  escape = FALSE,
+  col.names = cn
+) %>%
+  add_indent(indent_rows) %>%
+  add_header_above(c(" ", "Population 1" = 3, "Population 2" = 3))
+```

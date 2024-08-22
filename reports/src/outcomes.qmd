@@ -6,7 +6,7 @@
 coxvars <- modvars
 coxvars[modvars %in% stratavars] <- paste0("strata(", coxvars[modvars %in% stratavars], ")")
 
-outcomesfunc <- function(data, impdata, time, event, eventname, xvar = "shf_loopdiuretic_cat", rep = FALSE, fg = FALSE) {
+outcomesfunc <- function(data, impdata, time, event, eventname, xvar = "shf_loopdiuretic_cat", rep = FALSE, fg = FALSE, novars = NULL) {
   levs <- levels(data %>% pull(!!sym(xvar)))
   nlevs <- length(levs)
 
@@ -67,9 +67,10 @@ outcomesfunc <- function(data, impdata, time, event, eventname, xvar = "shf_loop
     )
 
     ## 3 row - adjusted regression
+    coxvarstmp <- setdiff(coxvars, novars)
     out[nrows, 2] <- "Adjusted HR (95% CI), p-value"
     mod <- summary(pool(with(impdata, coxph(formula(paste0(
-      "Surv(", time, ",", event, " == 'Yes') ~ ", xvar, "+", paste(coxvars, collapse = " + ")
+      "Surv(", time, ",", event, " == 'Yes') ~ ", xvar, "+", paste(coxvarstmp, collapse = " + ")
     ))))))
 
     out[nrows, 3:(nlevs + 2)] <- c(
@@ -140,10 +141,11 @@ outcomesfunc <- function(data, impdata, time, event, eventname, xvar = "shf_loop
     ))
 
     ## 3 row - adjusted regression
+    modvarstmp <- setdiff(modvars, novars)
     impdata0 <- miceadds::subset_datlist(impdata, expr_subset = data %>% pull(sos_outtime_death) > 0)
     mod <- with(impdata0, glm.nb(formula(paste0(
       event, " ~ ", xvar, " + offset(log(sos_outtime_death)) + ",
-      paste0(modvars, collapse = " + ")
+      paste0(modvarstmp, collapse = " + ")
     ))))
     mod <- summary(pool(mod))
     out[3, 2] <- "Adjusted RR (95% CI), p-value"
@@ -207,7 +209,7 @@ cvdeathhfhosp <- outcomesfunc(
   impdata = imprsdata_pop1,
   time = "sos_outtime_hosphf",
   event = "sos_out_deathcvhosphf",
-  eventname = "CVD/First HFH",
+  eventname = "First HFH/CVD",
   fg = T
 )
 cvdeathrephfhosp <- outcomesfunc(
@@ -215,7 +217,7 @@ cvdeathrephfhosp <- outcomesfunc(
   impdata = imprsdata_pop1,
   time = "sos_outtime_death",
   event = "sos_out_deathcvnohosphf",
-  eventname = "CVD/Total HFH",
+  eventname = "Total HFH/CVD",
   rep = TRUE
 )
 
@@ -266,7 +268,7 @@ cvdeathhfhosp <- outcomesfunc(
   impdata = imprsdata,
   time = "sos_outtime_hosphf",
   event = "sos_out_deathcvhosphf",
-  eventname = "CVD/First HFH",
+  eventname = "First HFH/CVD",
   fg = T
 )
 cvdeathrephfhosp <- outcomesfunc(
@@ -274,7 +276,7 @@ cvdeathrephfhosp <- outcomesfunc(
   impdata = imprsdata,
   time = "sos_outtime_death",
   event = "sos_out_deathcvnohosphf",
-  eventname = "CVD/Total HFH",
+  eventname = "Total HFH/CVD",
   rep = TRUE
 )
 
@@ -302,4 +304,319 @@ default_kable(outallprint,
   col.names = cn
 ) %>%
   add_header_above(c(" ", " ", "Population 1" = 3, "Population 2" = 3))
+```
+
+```{r}
+#| label: tbl-outcomes-nt
+#| cache: true
+#| cache.comments: false
+#| dependson: outcomesfunc
+#| tbl-cap: "Association between loop diuretic and outcomes by NT-proBNP"
+
+imprsdata_lownt <- miceadds::subset_datlist(imprsdata, expr_subset = rsdata$shf_ntprobnp < 300 & !is.na(rsdata$shf_ntprobnp))
+imprsdata_highnt <- miceadds::subset_datlist(imprsdata, expr_subset = rsdata$shf_ntprobnp >= 300 & !is.na(rsdata$shf_ntprobnp))
+
+# Low nt
+
+death <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp < 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_lownt,
+  time = "sos_outtime_death",
+  event = "sos_out_death",
+  eventname = "All-cause mortality",
+  novars = "shf_ntprobnp_cat"
+)
+cvdeath <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp < 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_lownt,
+  time = "sos_outtime_death",
+  event = "sos_out_deathcv",
+  eventname = "CVD",
+  fg = T,
+  novars = "shf_ntprobnp_cat"
+)
+hfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp < 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_lownt,
+  time = "sos_outtime_hosphf",
+  event = "sos_out_hosphf",
+  eventname = "First HFH",
+  fg = T,
+  novars = "shf_ntprobnp_cat"
+)
+rephfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp < 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_lownt,
+  time = "sos_outtime_death",
+  event = "sos_out_nohosphf",
+  eventname = "Total HFH",
+  rep = TRUE,
+  novars = "shf_ntprobnp_cat"
+)
+cvdeathhfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp < 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_lownt,
+  time = "sos_outtime_hosphf",
+  event = "sos_out_deathcvhosphf",
+  eventname = "First HFH/CVD",
+  fg = T,
+  novars = "shf_ntprobnp_cat"
+)
+cvdeathrephfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp < 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_lownt,
+  time = "sos_outtime_death",
+  event = "sos_out_deathcvnohosphf",
+  eventname = "Total HFH/CVD",
+  rep = TRUE,
+  novars = "shf_ntprobnp_cat"
+)
+
+outall_pop1 <- rbind(
+  cvdeathhfhosp,
+  cvdeath,
+  hfhosp,
+  rephfhosp,
+  cvdeathrephfhosp,
+  death
+)
+
+# High nt
+
+death <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp >= 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_highnt,
+  time = "sos_outtime_death",
+  event = "sos_out_death",
+  eventname = "All-cause mortality",
+  novars = "shf_ntprobnp_cat"
+)
+cvdeath <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp >= 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_highnt,
+  time = "sos_outtime_death",
+  event = "sos_out_deathcv",
+  eventname = "CVD",
+  fg = T,
+  novars = "shf_ntprobnp_cat"
+)
+hfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp >= 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_highnt,
+  time = "sos_outtime_hosphf",
+  event = "sos_out_hosphf",
+  eventname = "First HFH",
+  fg = T,
+  novars = "shf_ntprobnp_cat"
+)
+rephfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp >= 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_highnt,
+  time = "sos_outtime_death",
+  event = "sos_out_nohosphf",
+  eventname = "Total HFH",
+  rep = TRUE,
+  novars = "shf_ntprobnp_cat"
+)
+cvdeathhfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp >= 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_highnt,
+  time = "sos_outtime_hosphf",
+  event = "sos_out_deathcvhosphf",
+  eventname = "First HFH/CVD",
+  fg = T,
+  novars = "shf_ntprobnp_cat"
+)
+cvdeathrephfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_ntprobnp >= 300 & !is.na(shf_ntprobnp)),
+  impdata = imprsdata_highnt,
+  time = "sos_outtime_death",
+  event = "sos_out_deathcvnohosphf",
+  eventname = "Total HFH/CVD",
+  rep = TRUE,
+  novars = "shf_ntprobnp_cat"
+)
+
+outall_pop2 <- rbind(
+  cvdeathhfhosp,
+  cvdeath,
+  hfhosp,
+  rephfhosp,
+  cvdeathrephfhosp,
+  death
+)
+
+outall <- full_join(outall_pop1, outall_pop2, by = c("Outcome", "Model"))
+
+outallprint <- outall %>%
+  mutate(Outcome = if_else(Model == "No events, sum py, events/100py (95% CI)", Outcome, "")) %>%
+  select(-starts_with("hr"), -starts_with("lci"), -starts_with("uci"))
+
+cn <- colnames(outallprint)
+cn <- str_remove_all(cn, "\\.x|\\.y")
+
+make_one_xlsxsheet(outallprint, colnames = cn)
+
+default_kable(outallprint,
+  col.names = cn
+) %>%
+  add_header_above(c(" ", " ", "NT-proBNP <300" = 3, "NT-proBNP >=300" = 3))
+```
+
+
+```{r}
+#| label: tbl-outcomes-hfh
+#| cache: true
+#| cache.comments: false
+#| dependson: outcomesfunc
+#| tbl-cap: "Association between loop diuretic and outcomes by prior HFH"
+
+imprsdata_nohfh <- miceadds::subset_datlist(imprsdata, expr_subset = rsdata$shf_sos_prevhfh1yr == "No")
+imprsdata_hfh <- miceadds::subset_datlist(imprsdata, expr_subset = rsdata$shf_sos_prevhfh1yr == "Yes")
+
+# Low nt
+
+death <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "No"),
+  impdata = imprsdata_nohfh,
+  time = "sos_outtime_death",
+  event = "sos_out_death",
+  eventname = "All-cause mortality",
+  novars = "shf_location"
+)
+cvdeath <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "No"),
+  impdata = imprsdata_nohfh,
+  time = "sos_outtime_death",
+  event = "sos_out_deathcv",
+  eventname = "CVD",
+  fg = T,
+  novars = "shf_location"
+)
+hfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "No"),
+  impdata = imprsdata_nohfh,
+  time = "sos_outtime_hosphf",
+  event = "sos_out_hosphf",
+  eventname = "First HFH",
+  fg = T,
+  novars = "shf_location"
+)
+rephfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "No"),
+  impdata = imprsdata_nohfh,
+  time = "sos_outtime_death",
+  event = "sos_out_nohosphf",
+  eventname = "Total HFH",
+  rep = TRUE,
+  novars = "shf_location"
+)
+cvdeathhfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "No"),
+  impdata = imprsdata_nohfh,
+  time = "sos_outtime_hosphf",
+  event = "sos_out_deathcvhosphf",
+  eventname = "First HFH/CVD",
+  fg = T,
+  novars = "shf_location"
+)
+cvdeathrephfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "No"),
+  impdata = imprsdata_nohfh,
+  time = "sos_outtime_death",
+  event = "sos_out_deathcvnohosphf",
+  eventname = "Total HFH/CVD",
+  rep = TRUE,
+  novars = "shf_location"
+)
+
+outall_pop1 <- rbind(
+  cvdeathhfhosp,
+  cvdeath,
+  hfhosp,
+  rephfhosp,
+  cvdeathrephfhosp,
+  death
+)
+
+# High nt
+
+death <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "Yes"),
+  impdata = imprsdata_hfh,
+  time = "sos_outtime_death",
+  event = "sos_out_death",
+  eventname = "All-cause mortality",
+  novars = "shf_location"
+)
+cvdeath <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "Yes"),
+  impdata = imprsdata_hfh,
+  time = "sos_outtime_death",
+  event = "sos_out_deathcv",
+  eventname = "CVD",
+  fg = T,
+  novars = "shf_location"
+)
+hfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "Yes"),
+  impdata = imprsdata_hfh,
+  time = "sos_outtime_hosphf",
+  event = "sos_out_hosphf",
+  eventname = "First HFH",
+  fg = T,
+  novars = "shf_location"
+)
+rephfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "Yes"),
+  impdata = imprsdata_hfh,
+  time = "sos_outtime_death",
+  event = "sos_out_nohosphf",
+  eventname = "Total HFH",
+  rep = TRUE,
+  novars = "shf_location"
+)
+cvdeathhfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "Yes"),
+  impdata = imprsdata_hfh,
+  time = "sos_outtime_hosphf",
+  event = "sos_out_deathcvhosphf",
+  eventname = "First HFH/CVD",
+  fg = T,
+  novars = "shf_location"
+)
+cvdeathrephfhosp <- outcomesfunc(
+  data = rsdata %>% filter(shf_sos_prevhfh1yr == "Yes"),
+  impdata = imprsdata_hfh,
+  time = "sos_outtime_death",
+  event = "sos_out_deathcvnohosphf",
+  eventname = "Total HFH/CVD",
+  rep = TRUE,
+  novars = "shf_location"
+)
+
+outall_pop2 <- rbind(
+  cvdeathhfhosp,
+  cvdeath,
+  hfhosp,
+  rephfhosp,
+  cvdeathrephfhosp,
+  death
+)
+
+outall <- full_join(outall_pop1, outall_pop2, by = c("Outcome", "Model"))
+
+outallprint <- outall %>%
+  mutate(Outcome = if_else(Model == "No events, sum py, events/100py (95% CI)", Outcome, "")) %>%
+  select(-starts_with("hr"), -starts_with("lci"), -starts_with("uci"))
+
+cn <- colnames(outallprint)
+cn <- str_remove_all(cn, "\\.x|\\.y")
+
+make_one_xlsxsheet(outallprint, colnames = cn)
+
+default_kable(outallprint,
+  col.names = cn
+) %>%
+  add_header_above(c(" ", " ", "No prior HFH" = 3, "Prior HFH" = 3))
 ```

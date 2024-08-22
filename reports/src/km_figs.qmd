@@ -191,11 +191,11 @@ mcffunc <- function(event, eventno, eventname, xvar = "shf_loopdiuretic_cat", da
 #| dependson: kmfunc
 #| fig-cap: "Cumulative incidence curve/Mean cumulative function - Population 1"
 #| fig-subcap:
-#|   - "CVD/HFH"
+#|   - "HFH/CVD"
 #|   - "CVD"
 #|   - "HFH"
 #|   - "Total HFH"
-#|   - "CVD/total HFH"
+#|   - "Total HFH/CVD"
 #|   - "All-cause mortality"
 #| layout-ncol: 2
 #| layout-nrow: 3
@@ -203,7 +203,7 @@ mcffunc <- function(event, eventno, eventname, xvar = "shf_loopdiuretic_cat", da
 kmfunc(
   time = "sos_outtime_hosphf",
   event = "sos_out_deathcvhosphf",
-  eventname = "CVD/HFH",
+  eventname = "HFH/CVD",
   data = rsdata %>% filter(pop1),
   labposadj = c(-0.06, -0.06, -0.06)
 )
@@ -231,7 +231,7 @@ mcffunc(
 mcffunc(
   event = "sos_out_deathcvhosphf",
   eventno = "sos_out_deathcvnohosphf",
-  eventname = "CVD/HFH",
+  eventname = "HFH/CVD",
   data = rsdata %>% filter(pop1),
   datarec = rsdatarep %>% filter(pop1)
 )
@@ -251,11 +251,11 @@ kmfunc(
 #| dependson: kmfunc
 #| fig-cap: "Cumulative incidence curve/Mean cumulative function - Population 2"
 #| fig-subcap:
-#|   - "CVD/HFH"
+#|   - "HFH/CVD"
 #|   - "CVD"
 #|   - "HFH"
 #|   - "Total HFH"
-#|   - "CVD/total HFH"
+#|   - "Total HFH/CVD"
 #|   - "All-cause mortality"
 #| layout-ncol: 2
 #| layout-nrow: 3
@@ -263,7 +263,7 @@ kmfunc(
 kmfunc(
   time = "sos_outtime_hosphf",
   event = "sos_out_deathcvhosphf",
-  eventname = "CVD/HFH",
+  eventname = "HFH/CVD",
   data = rsdata,
   labposadj = c(-0.06, -0.06, -0.06)
 )
@@ -291,7 +291,7 @@ mcffunc(
 mcffunc(
   event = "sos_out_deathcvhosphf",
   eventno = "sos_out_deathcvnohosphf",
-  eventname = "CVD/HFH",
+  eventname = "HFH/CVD",
   data = rsdata,
   datarec = rsdatarep
 )

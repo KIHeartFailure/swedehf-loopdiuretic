@@ -33,6 +33,11 @@ rsdata <- rsdata %>%
       shf_indexyear <= 2021 ~ "2019-2021"
     ),
     shf_ef_cat = droplevels(shf_ef_cat),
+    shf_thiazide = factor(case_when(is.na(shf_diuretic) ~ NA_real_, 
+                             shf_diuretic == "No" ~ 0, 
+                             shf_loopdiuretic_old == "Yes" ~ 0, 
+                             TRUE ~ 1), 
+                          levels = 0:1, labels = c("No", "Yes")), 
 
     # fix outcomes
     sos_out_deathcvnohosphf = ifelse(sos_out_deathcv == "Yes", sos_out_nohosphf + 1, sos_out_nohosphf),

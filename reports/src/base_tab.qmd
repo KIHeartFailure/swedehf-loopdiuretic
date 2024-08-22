@@ -123,11 +123,13 @@ tab1 <- rsdata %>%
   ) %>%
   select(var, level, pmis, levels(rsdata %>% pull(shf_loopdiuretic_cat)), p)
 
-for (i in seq_along(tabvars)) {
-  tabtmp <- basetabfunc(tabvars[i], data = rsdata %>% filter(pop1), stratavar = "shf_loopdiuretic_cat", catdig = catdig, contdig = contdig)
-  tab1 <<- bind_rows(tab1, tabtmp)
-}
+tabtmp <- sapply(tabvars,
+  FUN = basetabfunc, data = rsdata %>% filter(pop1),
+  stratavar = "shf_loopdiuretic_cat", catdig = catdig, contdig = contdig
+)
 
+tabtmp <- bind_rows(tabtmp)
+tab1 <- bind_rows(tab1, tabtmp)
 
 # pop 2
 tab2 <- rsdata %>%
@@ -142,10 +144,13 @@ tab2 <- rsdata %>%
   ) %>%
   select(var, level, pmis, levels(rsdata %>% pull(shf_loopdiuretic_cat)), p)
 
-for (i in seq_along(tabvars)) {
-  tabtmp <- basetabfunc(tabvars[i], data = rsdata, stratavar = "shf_loopdiuretic_cat", catdig = catdig, contdig = contdig)
-  tab2 <<- bind_rows(tab2, tabtmp)
-}
+tabtmp <- sapply(tabvars,
+  FUN = basetabfunc, data = rsdata,
+  stratavar = "shf_loopdiuretic_cat", catdig = catdig, contdig = contdig
+)
+
+tabtmp <- bind_rows(tabtmp)
+tab2 <- bind_rows(tab2, tabtmp)
 
 tab <- bind_cols(tab1, tab2 %>% select(-var, -level))
 
@@ -224,6 +229,292 @@ default_kable(tab,
 ) %>%
   add_indent(indent_rows) %>%
   add_header_above(c(" ", "Population 1" = 5, "Population 2" = 5)) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Categorical variables are presented with n (%) and tested with chi-square test and continuous variables with median [q1-q3] and tested with Kruskal-Wallis test."
+    ),
+    symbol = c(
+      "Included in multiple imputation and cox regression models."
+    ),
+    threeparttable = T
+  )
+```
+
+```{r}
+#| label: tbl-base-nt
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Baseline characteristics by NT-proBNP"
+#| dependson: tbl-base
+
+# low nt
+tab1 <- rsdata %>%
+  filter(shf_ntprobnp < 300 & !is.na(shf_ntprobnp)) %>%
+  count(shf_loopdiuretic_cat, .drop = F) %>%
+  mutate(n = paste0(n, " (", fn(n / sum(n) * 100, catdig), ")")) %>%
+  pivot_wider(names_from = shf_loopdiuretic_cat, values_from = n) %>%
+  mutate(
+    var = "N (%)",
+    level = NA,
+    p = NA,
+    pmis = NA
+  ) %>%
+  select(var, level, pmis, levels(rsdata %>% pull(shf_loopdiuretic_cat)), p)
+
+tabvarstmp <- setdiff(tabvars, c("shf_ntprobnp", "shf_ntprobnp_cat"))
+tabtmp <- sapply(tabvarstmp,
+  FUN = basetabfunc, data = rsdata %>% filter(shf_ntprobnp < 300 & !is.na(shf_ntprobnp)),
+  stratavar = "shf_loopdiuretic_cat", catdig = catdig, contdig = contdig
+)
+
+tabtmp <- bind_rows(tabtmp)
+tab1 <- bind_rows(tab1, tabtmp)
+
+# high nt
+tab2 <- rsdata %>%
+  filter(shf_ntprobnp >= 300 & !is.na(shf_ntprobnp)) %>%
+  count(shf_loopdiuretic_cat, .drop = F) %>%
+  mutate(n = paste0(n, " (", fn(n / sum(n) * 100, catdig), ")")) %>%
+  pivot_wider(names_from = shf_loopdiuretic_cat, values_from = n) %>%
+  mutate(
+    var = "N (%)",
+    level = NA,
+    p = NA,
+    pmis = NA
+  ) %>%
+  select(var, level, pmis, levels(rsdata %>% pull(shf_loopdiuretic_cat)), p)
+
+tabtmp <- sapply(tabvarstmp,
+  FUN = basetabfunc, data = rsdata %>% filter(shf_ntprobnp >= 300 & !is.na(shf_ntprobnp)),
+  stratavar = "shf_loopdiuretic_cat", catdig = catdig, contdig = contdig
+)
+
+tabtmp <- bind_rows(tabtmp)
+tab2 <- bind_rows(tab2, tabtmp)
+
+tab <- bind_cols(tab1, tab2 %>% select(-var, -level))
+
+tab <- tab %>%
+  mutate(
+    # if recoding or categorizing will still get org label
+    var_tmp = str_replace_all(var, "(_cat2|_cat)", ""),
+    # if shf/sos combination  will still get org label
+    var_tmp = str_replace_all(var_tmp, "shf_sos_com_", "sos_com_")
+  )
+
+tab <- left_join(tab,
+  metavars %>%
+    select(variable, label, unit),
+  by = c("var_tmp" = "variable")
+) %>%
+  mutate(
+    Variable = coalesce(label, var_tmp),
+    Variable = if_else(!is.na(unit),
+      paste0(Variable, " (", unit, ")"),
+      Variable
+    ),
+    Variable = if_else(!is.na(level) & !is.na(Variable),
+      paste0(Variable, " ", level),
+      coalesce(Variable, paste0("  ", level))
+    ),
+    # small fixes
+    Variable = str_replace_all(Variable, fixed("Disposable income (100 SEK)"), "Income"),
+    Variable = str_replace_all(Variable, fixed("Loop diuretic dose"), "Loop diuretic Furosemid equivalent dose")
+  )
+
+levs <- levels(rsdata %>% pull(shf_loopdiuretic_cat))
+cn <- c("Variable", rep(c("Missing (%)", levs, "p-value"), 2))
+# excel
+tab_xls <- tab %>%
+  mutate(
+    footnote1 = if_else(!is.na(var) & var %in% modvars, "*", "")
+  ) %>%
+  unite(footnote, starts_with("footnote"), sep = "") %>%
+  mutate(Variable = paste0(Variable, footnote)) %>%
+  select(Variable, pmis...3:p...12)
+tab_xls <- tab_xls %>%
+  add_row(Variable = "*Included in multiple imputation and cox regression models.")
+
+make_one_xlsxsheet(tab_xls, colnames = cn)
+
+# footnotes
+tab <- tab %>%
+  mutate(
+    footnote1s = if_else(!is.na(var) & var %in% modvars, footnote_marker_symbol(1), "")
+  ) %>%
+  unite(footnote, starts_with("footnote"), sep = "") %>%
+  mutate(
+    # so no probs
+    Variable = sanitize_text(Variable),
+    Variable = paste0(Variable, footnote),
+    Variable = str_replace_all(Variable, fixed("²"), "\\textsuperscript{2}")
+  ) %>%
+  select(Variable, pmis...3:p...12)
+
+indent_rows <- tab %>%
+  mutate(
+    indent_rows = str_detect(Variable, "  "),
+    rows = row_number()
+  ) %>%
+  filter(indent_rows) %>%
+  pull(rows)
+
+cn <- sanitize_text(cn)
+
+default_kable(tab,
+  font_size = 4,
+  longtable = TRUE,
+  escape = FALSE,
+  col.names = cn
+) %>%
+  add_indent(indent_rows) %>%
+  add_header_above(c(" ", "NT-proBNP <300" = 5, "NT-proBNP >=300" = 5)) %>%
+  footnote(
+    footnote_order = c("general", "symbol", "alphabet"),
+    general_title = "",
+    general = c(
+      "Categorical variables are presented with n (%) and tested with chi-square test and continuous variables with median [q1-q3] and tested with Kruskal-Wallis test."
+    ),
+    symbol = c(
+      "Included in multiple imputation and cox regression models."
+    ),
+    threeparttable = T
+  )
+```
+
+```{r}
+#| label: tbl-base-hfh
+#| cache: true
+#| cache.comments: false
+#| tbl-cap: "Baseline characteristics by prior HFH"
+#| dependson: tbl-base
+
+# no hfh
+tab1 <- rsdata %>%
+  filter(shf_sos_prevhfh1yr == "No") %>%
+  count(shf_loopdiuretic_cat, .drop = F) %>%
+  mutate(n = paste0(n, " (", fn(n / sum(n) * 100, catdig), ")")) %>%
+  pivot_wider(names_from = shf_loopdiuretic_cat, values_from = n) %>%
+  mutate(
+    var = "N (%)",
+    level = NA,
+    p = NA,
+    pmis = NA
+  ) %>%
+  select(var, level, pmis, levels(rsdata %>% pull(shf_loopdiuretic_cat)), p)
+
+tabvarstmp <- setdiff(tabvars, c("shf_location", "shf_killip"))
+tabtmp <- sapply(tabvarstmp,
+  FUN = basetabfunc, data = rsdata %>% filter(shf_sos_prevhfh1yr == "No"),
+  stratavar = "shf_loopdiuretic_cat", catdig = catdig, contdig = contdig
+)
+
+tabtmp <- bind_rows(tabtmp)
+tab1 <- bind_rows(tab1, tabtmp)
+
+
+# hfh
+tab2 <- rsdata %>%
+  filter(shf_sos_prevhfh1yr == "Yes") %>%
+  count(shf_loopdiuretic_cat, .drop = F) %>%
+  mutate(n = paste0(n, " (", fn(n / sum(n) * 100, catdig), ")")) %>%
+  pivot_wider(names_from = shf_loopdiuretic_cat, values_from = n) %>%
+  mutate(
+    var = "N (%)",
+    level = NA,
+    p = NA,
+    pmis = NA
+  ) %>%
+  select(var, level, pmis, levels(rsdata %>% pull(shf_loopdiuretic_cat)), p)
+
+tabtmp <- sapply(tabvarstmp,
+  FUN = basetabfunc, data = rsdata %>% filter(shf_sos_prevhfh1yr == "Yes"),
+  stratavar = "shf_loopdiuretic_cat", catdig = catdig, contdig = contdig
+)
+
+tabtmp <- bind_rows(tabtmp)
+tab2 <- bind_rows(tab2, tabtmp)
+
+
+tab <- bind_cols(tab1, tab2 %>% select(-var, -level))
+
+tab <- tab %>%
+  mutate(
+    # if recoding or categorizing will still get org label
+    var_tmp = str_replace_all(var, "(_cat2|_cat)", ""),
+    # if shf/sos combination  will still get org label
+    var_tmp = str_replace_all(var_tmp, "shf_sos_com_", "sos_com_")
+  )
+
+tab <- left_join(tab,
+  metavars %>%
+    select(variable, label, unit),
+  by = c("var_tmp" = "variable")
+) %>%
+  mutate(
+    Variable = coalesce(label, var_tmp),
+    Variable = if_else(!is.na(unit),
+      paste0(Variable, " (", unit, ")"),
+      Variable
+    ),
+    Variable = if_else(!is.na(level) & !is.na(Variable),
+      paste0(Variable, " ", level),
+      coalesce(Variable, paste0("  ", level))
+    ),
+    # small fixes
+    Variable = str_replace_all(Variable, fixed("Disposable income (100 SEK)"), "Income"),
+    Variable = str_replace_all(Variable, fixed("Loop diuretic dose"), "Loop diuretic Furosemid equivalent dose")
+  )
+
+levs <- levels(rsdata %>% pull(shf_loopdiuretic_cat))
+cn <- c("Variable", rep(c("Missing (%)", levs, "p-value"), 2))
+# excel
+tab_xls <- tab %>%
+  mutate(
+    footnote1 = if_else(!is.na(var) & var %in% modvars, "*", "")
+  ) %>%
+  unite(footnote, starts_with("footnote"), sep = "") %>%
+  mutate(Variable = paste0(Variable, footnote)) %>%
+  select(Variable, pmis...3:p...12)
+tab_xls <- tab_xls %>%
+  add_row(Variable = "*Included in multiple imputation and cox regression models.")
+
+make_one_xlsxsheet(tab_xls, colnames = cn)
+
+# footnotes
+tab <- tab %>%
+  mutate(
+    footnote1s = if_else(!is.na(var) & var %in% modvars, footnote_marker_symbol(1), "")
+  ) %>%
+  unite(footnote, starts_with("footnote"), sep = "") %>%
+  mutate(
+    # so no probs
+    Variable = sanitize_text(Variable),
+    Variable = paste0(Variable, footnote),
+    Variable = str_replace_all(Variable, fixed("²"), "\\textsuperscript{2}")
+  ) %>%
+  select(Variable, pmis...3:p...12)
+
+indent_rows <- tab %>%
+  mutate(
+    indent_rows = str_detect(Variable, "  "),
+    rows = row_number()
+  ) %>%
+  filter(indent_rows) %>%
+  pull(rows)
+
+cn <- sanitize_text(cn)
+
+default_kable(tab,
+  font_size = 4,
+  longtable = TRUE,
+  escape = FALSE,
+  col.names = cn
+) %>%
+  add_indent(indent_rows) %>%
+  add_header_above(c(" ", "No prior HFH" = 5, "Prior HFH" = 5)) %>%
   footnote(
     footnote_order = c("general", "symbol", "alphabet"),
     general_title = "",

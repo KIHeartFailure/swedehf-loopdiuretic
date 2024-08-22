@@ -91,10 +91,10 @@ rephfhosp <- evalfunc(
   rep = TRUE
 )
 cvdeathhfhosp <- evalfunc(
-  eventname = "CVD/First HFH"
+  eventname = "First HFH/CVD"
 )
 cvdeathrephfhosp <- evalfunc(
-  eventname = "CVD/Total HFH",
+  eventname = "Total HFH/CVD",
   rep = TRUE
 )
 
@@ -114,6 +114,7 @@ evalout <- rbind(
 #| cache.comments: false
 #| dependson: evaluefunc
 #| tbl-cap: "Residual confounding - E-value"
+#| tbl-pos: "H"
 
 make_one_xlsxsheet(evalout)
 

@@ -182,17 +182,6 @@ The proportional hazards assumption was investigated using the scaled Schoenfeld
 residuals for the primary outcome leading to that location was stratified for in the models. 
 Possible outliers were visually inspected by plotting the dfbetas. 
 
-### Residual confounding
-
-In order to assess how robust the association between loop diuretic and the outcomes are 
-to residual confounding the E-value 
-was calculated[@evalue] [@evalue2]. The HR/RR used are from the adjusted models. 
-Approximate conversions of the HR to RR are applied, assuming a non-rare outcome. 
-The E-value is interpreted as the minimum Risk Ratio 
-that an unmeasured confounder would need to have with both loop diuretic and 
-the outcome, conditional on the variables currently adjusted 
-for in the model, to fully eliminate the association between loop diuretic and the outcome. 
-
 # Results
 
 ```{r}
@@ -239,6 +228,7 @@ The median (q1-q3) age is `r med_pop1` and `r percfem_pop1`% females in Populati
 ## Baseline characteristics
 
 {{< include src/base_tab.qmd >}}
+{{< include src/base_tab_af.qmd >}}
 
 \elandscape
 
@@ -281,10 +271,6 @@ The median (min-max) follow-up is
 {{< include src/outcomes.qmd >}}
 
 {{< include src/km_figs.qmd >}}
-
-### Residual confounding
-
-{{< include src/evalue.qmd >}}
 
 \clearpage
 
