@@ -23,7 +23,9 @@ basetabfunc <- function(x, data, stratavar, catdig, contdig) {
       count(!!sym(x), .drop = F) %>%
       mutate(
         out = paste0(n, " (", fn(n / sum(n) * 100, catdig), ")"),
-        out = if_else(n < 10, "<10", out),
+        out = case_when(n == 0 ~ "-", 
+                        n < 10 ~ "<10", 
+                        TRUE ~ out),
         level = !!sym(x)
       ) %>%
       ungroup() %>%
@@ -179,7 +181,8 @@ tab <- left_join(tab,
     ),
     # small fixes
     Variable = str_replace_all(Variable, fixed("Disposable income (100 SEK)"), "Income"),
-    Variable = str_replace_all(Variable, fixed("Loop diuretic dose"), "Loop diuretic Furosemid equivalent dose")
+    Variable = str_replace_all(Variable, fixed("Loop diuretic dose"), "Loop diuretic Furosemid equivalent dose"), 
+    
   )
 
 levs <- levels(rsdata %>% pull(shf_loopdiuretic_cat))
@@ -187,20 +190,23 @@ cn <- c("Variable", rep(c("Missing (%)", levs, "p-value"), 2))
 # excel
 tab_xls <- tab %>%
   mutate(
-    footnote1 = if_else(!is.na(var) & var %in% modvars, "*", "")
+    footnote1 = if_else(!is.na(var) & var %in% modvars, "*", ""), 
+    footnote2 = if_else(!is.na(var) & var == "shf_loopdiureticsub", "†", ""), 
   ) %>%
   unite(footnote, starts_with("footnote"), sep = "") %>%
   mutate(Variable = paste0(Variable, footnote)) %>%
   select(Variable, pmis...3:p...12)
 tab_xls <- tab_xls %>%
-  add_row(Variable = "*Included in multiple imputation and cox regression models.")
+  add_row(Variable = "*Included in multiple imputation and cox regression models.") %>%
+  add_row(Variable = "†Included in the eCRF from April 2017.")
 
 make_one_xlsxsheet(tab_xls, colnames = cn)
 
 # footnotes
 tab <- tab %>%
   mutate(
-    footnote1s = if_else(!is.na(var) & var %in% modvars, footnote_marker_symbol(1), "")
+    footnote1s = if_else(!is.na(var) & var %in% modvars, footnote_marker_symbol(1), ""), 
+    footnote2s = if_else(!is.na(var) & var == "shf_loopdiureticsub", footnote_marker_symbol(2), ""), 
   ) %>%
   unite(footnote, starts_with("footnote"), sep = "") %>%
   mutate(
@@ -236,7 +242,8 @@ default_kable(tab,
       "Categorical variables are presented with n (%) and tested with chi-square test and continuous variables with median [q1-q3] and tested with Kruskal-Wallis test."
     ),
     symbol = c(
-      "Included in multiple imputation and cox regression models."
+      "Included in multiple imputation and cox regression models.", 
+      "Included in the eCRF from April 2017."
     ),
     threeparttable = T
   )
@@ -329,20 +336,23 @@ cn <- c("Variable", rep(c("Missing (%)", levs, "p-value"), 2))
 # excel
 tab_xls <- tab %>%
   mutate(
-    footnote1 = if_else(!is.na(var) & var %in% modvars, "*", "")
+    footnote1 = if_else(!is.na(var) & var %in% modvars, "*", ""), 
+    footnote2 = if_else(!is.na(var) & var == "shf_loopdiureticsub", "†", ""), 
   ) %>%
   unite(footnote, starts_with("footnote"), sep = "") %>%
   mutate(Variable = paste0(Variable, footnote)) %>%
   select(Variable, pmis...3:p...12)
 tab_xls <- tab_xls %>%
-  add_row(Variable = "*Included in multiple imputation and cox regression models.")
+  add_row(Variable = "*Included in multiple imputation and cox regression models.") %>%
+  add_row(Variable = "†Included in the eCRF from April 2017.")
 
 make_one_xlsxsheet(tab_xls, colnames = cn)
 
 # footnotes
 tab <- tab %>%
   mutate(
-    footnote1s = if_else(!is.na(var) & var %in% modvars, footnote_marker_symbol(1), "")
+    footnote1s = if_else(!is.na(var) & var %in% modvars, footnote_marker_symbol(1), ""), 
+    footnote2s = if_else(!is.na(var) & var == "shf_loopdiureticsub", footnote_marker_symbol(2), ""), 
   ) %>%
   unite(footnote, starts_with("footnote"), sep = "") %>%
   mutate(
@@ -378,7 +388,8 @@ default_kable(tab,
       "Categorical variables are presented with n (%) and tested with chi-square test and continuous variables with median [q1-q3] and tested with Kruskal-Wallis test."
     ),
     symbol = c(
-      "Included in multiple imputation and cox regression models."
+      "Included in multiple imputation and cox regression models.", 
+      "Included in the eCRF from April 2017."
     ),
     threeparttable = T
   )
@@ -473,20 +484,23 @@ cn <- c("Variable", rep(c("Missing (%)", levs, "p-value"), 2))
 # excel
 tab_xls <- tab %>%
   mutate(
-    footnote1 = if_else(!is.na(var) & var %in% modvars, "*", "")
+    footnote1 = if_else(!is.na(var) & var %in% modvars, "*", ""), 
+    footnote2 = if_else(!is.na(var) & var == "shf_loopdiureticsub", "†", ""), 
   ) %>%
   unite(footnote, starts_with("footnote"), sep = "") %>%
   mutate(Variable = paste0(Variable, footnote)) %>%
   select(Variable, pmis...3:p...12)
 tab_xls <- tab_xls %>%
-  add_row(Variable = "*Included in multiple imputation and cox regression models.")
+  add_row(Variable = "*Included in multiple imputation and cox regression models.") %>%
+  add_row(Variable = "†Included in the eCRF from April 2017.")
 
 make_one_xlsxsheet(tab_xls, colnames = cn)
 
 # footnotes
 tab <- tab %>%
   mutate(
-    footnote1s = if_else(!is.na(var) & var %in% modvars, footnote_marker_symbol(1), "")
+    footnote1s = if_else(!is.na(var) & var %in% modvars, footnote_marker_symbol(1), ""), 
+    footnote2s = if_else(!is.na(var) & var == "shf_loopdiureticsub", footnote_marker_symbol(2), ""), 
   ) %>%
   unite(footnote, starts_with("footnote"), sep = "") %>%
   mutate(
@@ -522,7 +536,8 @@ default_kable(tab,
       "Categorical variables are presented with n (%) and tested with chi-square test and continuous variables with median [q1-q3] and tested with Kruskal-Wallis test."
     ),
     symbol = c(
-      "Included in multiple imputation and cox regression models."
+      "Included in multiple imputation and cox regression models.", 
+      "Included in the eCRF from April 2017."
     ),
     threeparttable = T
   )

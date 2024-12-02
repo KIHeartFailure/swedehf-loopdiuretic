@@ -27,6 +27,7 @@ rsdata <- rsdata %>%
       shf_loopdiureticdose <= 40 ~ 1,
       shf_loopdiureticdose > 40 ~ 2
     ), levels = 0:2, labels = c("No loop diuretic", "Dose 1-40mg", "Dose >40mg")),
+    shf_loopdiureticsub = factor(if_else(shf_loopdiuretic_cat == "No loop diuretic", NA_character_, shf_loopdiureticsub)), 
     shf_indexyear_cat = case_when(
       shf_indexyear <= 2015 ~ "2011-2015",
       shf_indexyear <= 2018 ~ "2016-2018",
