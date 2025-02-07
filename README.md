@@ -20,8 +20,8 @@ Workflow:
 
 1. Run munge/MAIN.R (loads data, munges and saves data)
 
-2. Knit reports/Statistical_report_XX.Rmd
+2. Run reports/Statistical_report_XX.qmd
 
 ## Publication
 
-... 
+https://pubmed.ncbi.nlm.nih.gov/39844742/
